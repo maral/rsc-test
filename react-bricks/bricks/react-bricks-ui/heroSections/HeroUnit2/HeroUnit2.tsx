@@ -28,6 +28,8 @@ export interface HeroUnitProps extends LayoutProps {
   text: types.TextValue
   buttons: types.RepeaterItems
   badge: types.RepeaterItems
+  joke: string
+  jokeCategory: keyof typeof categories
 }
 
 const HeroUnit2: types.Brick<HeroUnitProps> = ({
@@ -43,6 +45,7 @@ const HeroUnit2: types.Brick<HeroUnitProps> = ({
   text,
   buttons,
   badge,
+  joke,
 }: HeroUnitProps) => {
   const titleColor = textColors.GRAY_800
   const textColor = textColors.GRAY_700
@@ -50,6 +53,8 @@ const HeroUnit2: types.Brick<HeroUnitProps> = ({
     textGradient !== gradients.NONE.value
       ? { WebkitTextFillColor: 'transparent' }
       : {}
+
+  console.log('am I a client component?')
 
   return (
     <Section
@@ -80,21 +85,40 @@ const HeroUnit2: types.Brick<HeroUnitProps> = ({
               <RichText
                 propName="title"
                 value={title}
-                renderBlock={(props) => (
-                  <h1
-                    className={classNames(
-                      'text-[28px] leading-8 sm:text-[40px] sm:leading-tight lg:text-[44px] lg:leading-snug text-center lg:text-left font-extrabold mb-4 bg-clip-text bg-gradient-to-r   ',
-                      titleColor
-                    )}
-                    {...props.attributes}
-                  >
-                    {props.children}
-                  </h1>
-                )}
-                allowedFeatures={[types.RichTextFeatures.Highlight]}
+                renderBlock={(props) => {
+                  console.log('renderBlock here')
+                  return (
+                    <h1
+                      className={classNames(
+                        'text-[28px] leading-8 sm:text-[40px] sm:leading-tight lg:text-[44px] lg:leading-snug text-center lg:text-left font-extrabold mb-4 bg-clip-text bg-gradient-to-r   ',
+                        titleColor
+                      )}
+                      {...props.attributes}
+                    >
+                      {props.children}
+                    </h1>
+                  )
+                }}
+                allowedFeatures={[
+                  types.RichTextFeatures.Highlight,
+                  types.RichTextFeatures.Bold,
+                  types.RichTextFeatures.Heading1,
+                  types.RichTextFeatures.OrderedList,
+                ]}
                 placeholder="Type a title..."
                 renderHighlight={({ children }) => (
                   <span className={highlightTextColor.className}>
+                    {children}
+                  </span>
+                )}
+                renderLI={({ children }) => (
+                  <li className="text-xl">{children}</li>
+                )}
+                renderOL={({ children }) => (
+                  <ol className="list-decimal list-inside">{children}</ol>
+                )}
+                renderBold={({ children }) => (
+                  <span style={{ textDecoration: 'underline' }}>
                     {children}
                   </span>
                 )}
@@ -119,6 +143,7 @@ const HeroUnit2: types.Brick<HeroUnitProps> = ({
               placeholder="Type a text..."
               allowedFeatures={[types.RichTextFeatures.Bold]}
             />
+            <p className="text-pink-400 text-center mt-4">{joke}</p>
             <Repeater
               propName="buttons"
               items={buttons}
@@ -135,6 +160,31 @@ const HeroUnit2: types.Brick<HeroUnitProps> = ({
   )
 }
 
+type JokeCategory = {
+  label: string
+  value: string
+}
+
+const categories = {
+  any: { label: 'Any', value: 'any' },
+  animal: { label: 'Animal', value: 'animal' },
+  career: { label: 'Career', value: 'career' },
+  celebrity: { label: 'Celebrity', value: 'celebrity' },
+  dev: { label: 'Dev', value: 'dev' },
+  explicit: { label: 'Explicit', value: 'explicit' },
+  fashion: { label: 'Fashion', value: 'fashion' },
+  food: { label: 'Food', value: 'food' },
+  history: { label: 'History', value: 'history' },
+  money: { label: 'Money', value: 'money' },
+  movie: { label: 'Movie', value: 'movie' },
+  music: { label: 'Music', value: 'music' },
+  political: { label: 'Political', value: 'political' },
+  religion: { label: 'Religion', value: 'religion' },
+  science: { label: 'Science', value: 'science' },
+  sport: { label: 'Sport', value: 'sport' },
+  travel: { label: 'Travel', value: 'travel' },
+} as const satisfies Record<string, JokeCategory>
+
 HeroUnit2.schema = {
   name: blockNames.HeroUnit2,
   label: 'Horizontal Hero',
@@ -144,6 +194,24 @@ HeroUnit2.schema = {
   playgroundLinkUrl:
     'https://github.com/ReactBricks/react-bricks-ui/blob/master/src/website/Hero%20Unit/HeroUnit.tsx',
   previewImageUrl: `/bricks-preview-images/${blockNames.HeroUnit2}.png`,
+  getExternalData: async (page, props) => {
+    const response = await fetch(
+      `https://api.chucknorris.io/jokes/random${
+        props &&
+        props.jokeCategory !== 'any' &&
+        props.jokeCategory !== undefined
+          ? `?category=${props.jokeCategory.toLowerCase()}`
+          : ''
+      }`,
+      { cache: 'no-store' }
+    )
+    if (!response.ok) {
+      console.log(`An error has occurred: ${response.status}`)
+      return { joke: 'No joke!' }
+    } else {
+      return { joke: (await response.json()).value }
+    }
+  },
   getDefaultProps: () => ({
     ...sectionDefaults,
     paddingTop: '20',
@@ -192,6 +260,8 @@ HeroUnit2.schema = {
         simpleAnchorLink: false,
       },
     ],
+    jokeCategory: 'any',
+    joke: "No joke!",
   }),
   repeaterItems: [
     {
@@ -213,7 +283,21 @@ HeroUnit2.schema = {
     {
       groupName: 'Title',
       defaultOpen: true,
-      props: [textGradientEditProps, highlightTextEditProps],
+      props: [
+        textGradientEditProps,
+        highlightTextEditProps,
+        {
+          name: 'jokeCategory',
+          label: 'Joke category',
+          type: types.SideEditPropType.Select,
+          selectOptions: {
+            display: types.OptionsDisplay.Select,
+            options: Object.values(categories),
+          },
+          shouldRefreshText: true,
+          shouldRefreshStyles: true,
+        },
+      ],
     },
     backgroundWithImageBgSideGroup,
     paddingBordersSideGroup,
